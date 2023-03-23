@@ -6,7 +6,7 @@ const auth = async (req, res, next) => {
     try {
       const Authorization = req.header('Authorization')
       if (!Authorization || Authorization.replace('Bearer ', '').trim() !== AUTH_SECRET_KEY.trim())
-        throw new Error('Error: No permission to access')
+        throw new Error('Access denied - you do not have permission to proceed.')
       next()
     }
     catch (error) {
