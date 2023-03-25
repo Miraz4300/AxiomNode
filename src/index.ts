@@ -84,5 +84,6 @@ router.post('/verify', async (req, res) => {
 
 app.use('', router)
 app.use('/api', router)
+app.set('trust proxy', 1)
 
 app.listen(10829, () => globalThis.console.log('Axiom-Node is running on port 10829'))
