@@ -172,7 +172,7 @@ function formatDate(): string[] {
   const month = today.getMonth() + 1
   const lastDay = new Date(year, month, 0)
   const formattedFirstDay = `${year}-${month.toString().padStart(2, '0')}-01`
-  const formattedLastDay = ` ${year} - ${month.toString ().padStart (2, '0')} - ${lastDay.getDate ().toString ().padStart (2, '0')} `
+  const formattedLastDay = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
   return [formattedFirstDay, formattedLastDay]
 }
 
