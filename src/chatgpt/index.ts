@@ -5,16 +5,16 @@ import { ChatGPTAPI, ChatGPTUnofficialProxyAPI } from 'chatgpt'
 import { SocksProxyAgent } from 'socks-proxy-agent'
 import httpsProxyAgent from 'https-proxy-agent'
 import fetch from 'node-fetch'
-import axios from 'axios'
 import { sendResponse } from '../utils'
 import { isNotEmptyString } from '../utils/is'
 import type { ApiModel, ChatContext, ChatGPTUnofficialProxyAPIOptions, ModelConfig } from '../types'
-import type { RequestOptions } from './types'
+import type { BalanceResponse, RequestOptions } from './types'
 
 const { HttpsProxyAgent } = httpsProxyAgent
 
 dotenv.config()
 
+// Error messages for different HTTP error codes
 const ErrorCodeMessage: Record<string, string> = {
   401: '[OpenAI] Incorrect API key provided',
   403: '[OpenAI] Server refused to access, please try again later',
@@ -24,31 +24,36 @@ const ErrorCodeMessage: Record<string, string> = {
   500: '[OpenAI] Internal Server Error',
 }
 
+// Timeout for API requests
 const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT_MS : 30 * 1000
+
+// Whether debugging is disabled or not
 const disableDebug: boolean = process.env.DISABLE_DEBUG === 'true'
 
+// Model used for API requests
 let apiModel: ApiModel
 
+// Check that required environment variables are set
 if (!isNotEmptyString(process.env.OPENAI_API_KEY) && !isNotEmptyString(process.env.OPENAI_ACCESS_TOKEN))
   throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
 
+// Initialize ChatGPT API
 let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
 
 (async () => {
-  // More Info: https://github.com/transitive-bullshit/chatgpt-api
-
   if (isNotEmptyString(process.env.OPENAI_API_KEY)) {
     const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
     const OPENAI_API_MODEL = process.env.OPENAI_API_MODEL
     const model = isNotEmptyString(OPENAI_API_MODEL) ? OPENAI_API_MODEL : 'gpt-3.5-turbo'
 
+    // Set options object for ChatGPTAPI
     const options: ChatGPTAPIOptions = {
       apiKey: process.env.OPENAI_API_KEY,
       completionParams: { model },
       debug: !disableDebug,
     }
 
-    // increase max token limit if use gpt-4
+    // Increase max token limit if using GPT-4
     if (model.toLowerCase().includes('gpt-4')) {
       // if use 32k model
       if (model.toLowerCase().includes('32k')) {
@@ -71,6 +76,7 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
   }
   else {
     const OPENAI_API_MODEL = process.env.OPENAI_API_MODEL
+    // Set options object for ChatGPTUnofficialProxyAPI
     const options: ChatGPTUnofficialProxyAPIOptions = {
       accessToken: process.env.OPENAI_ACCESS_TOKEN,
       debug: !disableDebug,
@@ -79,9 +85,7 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
     if (isNotEmptyString(OPENAI_API_MODEL))
       options.model = OPENAI_API_MODEL
 
-    options.apiReverseProxyUrl = isNotEmptyString(process.env.API_REVERSE_PROXY)
-      ? process.env.API_REVERSE_PROXY
-      : 'https://bypass.churchless.tech/api/conversation'
+    options.apiReverseProxyUrl = process.env.API_REVERSE_PROXY ?? 'https://bypass.churchless.tech/api/conversation'
 
     setupProxy(options)
 
@@ -90,16 +94,19 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
   }
 })()
 
+// Process a chat message and return a response
 async function chatReplyProcess(options: RequestOptions) {
   const { message, lastContext, process, systemMessage } = options
   try {
     let options: SendMessageOptions = { timeoutMs }
 
+    // Set systemMessage parameter for ChatGPTAPI requests
     if (apiModel === 'ChatGPTAPI') {
       if (isNotEmptyString(systemMessage))
         options.systemMessage = systemMessage
     }
 
+    // Set parameters for child messages for ChatGPTAPI requests
     if (lastContext != null) {
       if (apiModel === 'ChatGPTAPI')
         options.parentMessageId = lastContext.parentMessageId
@@ -121,10 +128,11 @@ async function chatReplyProcess(options: RequestOptions) {
     global.console.log(error)
     if (Reflect.has(ErrorCodeMessage, code))
       return sendResponse({ type: 'Fail', message: ErrorCodeMessage[code] })
-    return sendResponse({ type: 'Fail', message: error.message ?? 'Please check the axiom-node console' })
+    return sendResponse({ type: 'Fail', message: error.message ?? 'Please check the AxiomNode console' })
   }
 }
 
+// Fetches the balance of the OpenAI API account
 async function fetchBalance() {
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY
   const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
@@ -136,17 +144,39 @@ async function fetchBalance() {
     ? OPENAI_API_BASE_URL
     : 'https://api.openai.com'
 
+  const [startDate, endDate] = formatDate ()
+
+  // monthly usage
+  const urlUsage = `${API_BASE_URL}/v1/dashboard/billing/usage?start_date=${startDate}&end_date=${endDate}`
+
+  const headers = {
+    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    'Content-Type': 'application/json',
+  }
+
   try {
-    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` }
-    const response = await axios.get(`${API_BASE_URL}/dashboard/billing/credit_grants`, { headers })
-    const balance = response.data.total_available ?? 0
-    return Promise.resolve(balance.toFixed(3))
+    // get used amount
+    const useResponse = await fetch(urlUsage, { headers })
+    const usageData = await useResponse.json() as BalanceResponse
+    const usage = Math.round(usageData.total_usage) / 100
+    return Promise.resolve(usage ? `$${usage}` : '-')
   }
   catch {
     return Promise.resolve('-')
   }
 }
 
+function formatDate(): string[] {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth() + 1
+  const lastDay = new Date(year, month, 0)
+  const formattedFirstDay = `${year}-${month.toString().padStart(2, '0')}-01`
+  const formattedLastDay = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
+  return [formattedFirstDay, formattedLastDay]
+}
+
+// Returns the configuration details of the ChatGPT API
 async function chatConfig() {
   const balance = await fetchBalance()
   const reverseProxy = process.env.API_REVERSE_PROXY ?? '-'
@@ -160,6 +190,7 @@ async function chatConfig() {
   })
 }
 
+// Sets up the proxy settings for API requests
 function setupProxy(options: ChatGPTAPIOptions | ChatGPTUnofficialProxyAPIOptions) {
   if (isNotEmptyString(process.env.SOCKS_PROXY_HOST) && isNotEmptyString(process.env.SOCKS_PROXY_PORT)) {
     const agent = new SocksProxyAgent({
@@ -185,10 +216,10 @@ function setupProxy(options: ChatGPTAPIOptions | ChatGPTUnofficialProxyAPIOption
   }
 }
 
+// Returns the current API model being used
 function currentModel(): ApiModel {
   return apiModel
 }
 
 export type { ChatContext, ChatMessage }
-
 export { chatReplyProcess, chatConfig, currentModel }

@@ -1,8 +1,8 @@
 import express from 'express'
 import compression from 'compression'
 import type { RequestProps } from './types'
-import type { ChatMessage } from './chatgpt'
 import { chatConfig, chatReplyProcess, currentModel } from './chatgpt'
+import type { ChatMessage } from './chatgpt'
 import { auth } from './middleware/auth'
 import { limiter } from './middleware/limiter'
 import { isNotEmptyString } from './utils/is'
@@ -10,10 +10,12 @@ import { isNotEmptyString } from './utils/is'
 const app = express()
 const router = express.Router()
 
+// Middleware:
 app.use(compression())
 app.use(express.static('public'))
 app.use(express.json())
 
+// CORS enabled for all origins:
 app.all('*', (_, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
   res.header('Access-Control-Allow-Headers', 'authorization, Content-Type')
@@ -21,12 +23,14 @@ app.all('*', (_, res, next) => {
   next()
 })
 
+// Endpoint for chat processing:
 router.post('/chat-process', [auth, limiter], async (req, res) => {
   res.setHeader('Content-type', 'application/octet-stream')
 
   try {
     const { prompt, options = {}, systemMessage } = req.body as RequestProps
     let firstChunk = true
+
     await chatReplyProcess({
       message: prompt,
       lastContext: options,
@@ -45,6 +49,7 @@ router.post('/chat-process', [auth, limiter], async (req, res) => {
   }
 })
 
+// Endpoint for chat configuration:
 router.post('/config', auth, async (req, res) => {
   try {
     const response = await chatConfig()
@@ -55,6 +60,7 @@ router.post('/config', auth, async (req, res) => {
   }
 })
 
+// Endpoint for session:
 router.post('/session', async (req, res) => {
   try {
     const AUTH_SECRET_KEY = process.env.AUTH_SECRET_KEY
@@ -66,12 +72,13 @@ router.post('/session', async (req, res) => {
   }
 })
 
+// Endpoint for verification:
 router.post('/verify', async (req, res) => {
   try {
     const { token } = req.body as { token: string }
+
     if (!token)
       throw new Error('Secret key is empty')
-
     if (process.env.AUTH_SECRET_KEY !== token)
       throw new Error('Secret key is invalid')
 
@@ -82,8 +89,11 @@ router.post('/verify', async (req, res) => {
   }
 })
 
+// Middleware for the router and port that the app listens on:
 app.use('', router)
 app.use('/api', router)
+
+// Configure the app to trust proxy headers
 app.set('trust proxy', 1)
 
 app.listen(10829, () => globalThis.console.log('Axiom-Node is running on port 10829'))
