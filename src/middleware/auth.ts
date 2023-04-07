@@ -6,11 +6,11 @@ const auth = async (req, res, next) => {
     try {
       const Authorization = req.header('Authorization')
       if (!Authorization || Authorization.replace('Bearer ', '').trim() !== AUTH_SECRET_KEY.trim())
-        throw new Error('Access denied - you do not have permission to proceed.')
+        throw new Error('Permission denied - You are not authorized to continue.')
       next()
     }
     catch (error) {
-      res.send({ status: 'Unauthorized', message: error.message ?? 'Please authenticate.', data: null })
+      res.send({ status: 'Unauthorized', message: error.message ?? 'You are not authorized to access this resource. Please authenticate.', data: null })
     }
   }
   else {
