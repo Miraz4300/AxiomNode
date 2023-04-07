@@ -30,8 +30,9 @@ const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT
 // Whether debugging is disabled or not
 const disableDebug: boolean = process.env.DISABLE_DEBUG === 'true'
 
-// Model used for API requests
+// Model used for API requests and fine-tuning
 let apiModel: ApiModel
+let model = 'gpt-3.5-turbo'
 
 // Check that required environment variables are set
 if (!isNotEmptyString(process.env.OPENAI_API_KEY) && !isNotEmptyString(process.env.OPENAI_ACCESS_TOKEN))
@@ -44,7 +45,7 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
   if (isNotEmptyString(process.env.OPENAI_API_KEY)) {
     const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
     const OPENAI_API_MODEL = process.env.OPENAI_API_MODEL
-    const model = isNotEmptyString(OPENAI_API_MODEL) ? OPENAI_API_MODEL : 'gpt-3.5-turbo'
+    model = isNotEmptyString(OPENAI_API_MODEL) ? OPENAI_API_MODEL : 'gpt-3.5-turbo'
 
     // Set options object for ChatGPTAPI
     const options: ChatGPTAPIOptions = {
@@ -98,7 +99,7 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
 
 // Process a chat message and return a response
 async function chatReplyProcess(options: RequestOptions) {
-  const { message, lastContext, process, systemMessage } = options
+  const { message, lastContext, process, systemMessage, temperature, top_p } = options
   try {
     let options: SendMessageOptions = { timeoutMs }
 
@@ -106,6 +107,7 @@ async function chatReplyProcess(options: RequestOptions) {
     if (apiModel === 'ChatGPTAPI') {
       if (isNotEmptyString(systemMessage))
         options.systemMessage = systemMessage
+      options.completionParams = { model, temperature, top_p }
     }
 
     // Set parameters for child messages for ChatGPTAPI requests
