@@ -25,7 +25,7 @@ const ErrorCodeMessage: Record<string, string> = {
 }
 
 // Timeout for API requests
-const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT_MS : 30 * 1000
+const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT_MS : 60 * 1000
 
 // Whether debugging is disabled or not
 const disableDebug: boolean = process.env.DISABLE_DEBUG === 'true'
