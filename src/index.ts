@@ -1,5 +1,4 @@
 import express from 'express'
-import compression from 'compression'
 import type { RequestProps } from './types'
 import { chatConfig, chatReplyProcess, currentModel } from './chatgpt'
 import type { ChatMessage } from './chatgpt'
@@ -11,7 +10,6 @@ const app = express()
 const router = express.Router()
 
 // Middleware:
-app.use(compression())
 app.use(express.static('public'))
 app.use(express.json())
 
