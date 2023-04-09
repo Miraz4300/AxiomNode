@@ -32,7 +32,7 @@ const disableDebug: boolean = process.env.DISABLE_DEBUG === 'true'
 
 // Model used for API requests and fine-tuning
 let apiModel: ApiModel
-let model = 'gpt-3.5-turbo'
+const model = isNotEmptyString(process.env.OPENAI_API_MODEL) ? process.env.OPENAI_API_MODEL : 'gpt-3.5-turbo'
 
 // Check that required environment variables are set
 if (!isNotEmptyString(process.env.OPENAI_API_KEY) && !isNotEmptyString(process.env.OPENAI_ACCESS_TOKEN))
@@ -44,8 +44,6 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
 (async () => {
   if (isNotEmptyString(process.env.OPENAI_API_KEY)) {
     const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
-    const OPENAI_API_MODEL = process.env.OPENAI_API_MODEL
-    model = isNotEmptyString(OPENAI_API_MODEL) ? OPENAI_API_MODEL : 'gpt-3.5-turbo'
 
     // Set options object for ChatGPTAPI
     const options: ChatGPTAPIOptions = {
@@ -76,19 +74,13 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
     apiModel = 'ChatGPTAPI'
   }
   else {
-    const OPENAI_API_MODEL = process.env.OPENAI_API_MODEL
     // Set options object for ChatGPTUnofficialProxyAPI
     const options: ChatGPTUnofficialProxyAPIOptions = {
       accessToken: process.env.OPENAI_ACCESS_TOKEN,
+      apiReverseProxyUrl: isNotEmptyString(process.env.API_REVERSE_PROXY) ? process.env.API_REVERSE_PROXY : 'https://bypass.churchless.tech/api/conversation',
+      model,
       debug: !disableDebug,
     }
-
-    if (isNotEmptyString(OPENAI_API_MODEL))
-      options.model = OPENAI_API_MODEL
-
-    options.apiReverseProxyUrl = isNotEmptyString(process.env.API_REVERSE_PROXY)
-      ? process.env.API_REVERSE_PROXY
-      : 'https://bypass.churchless.tech/api/conversation'
 
     setupProxy(options)
 
